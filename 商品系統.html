@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <title>商品系統</title>
+</head>
+<body>
+  <h1>商品數量管控系統</h1>
+
+  <input id="name" placeholder="商品名稱" />
+  <input id="quantity" type="number" placeholder="數量" />
+  <input id="price" type="number" placeholder="價格" />
+  <button onclick="addProduct()">新增商品</button>
+  <button onclick="downloadCSV()">匯出 CSV</button>
+
+  <table border="1">
+    <thead>
+      <tr>
+        <th>名稱</th>
+        <th>庫存</th>
+        <th>價格</th>
+        <th>賣出次數</th>
+        <th>賣出金額</th>
+        <th>操作</th>
+      </tr>
+    </thead>
+    <tbody id="productTable"></tbody>
+  </table>
+
+  <h3 id="totalRevenue">總營收：$0</h3>
+
+  <script>
+    let products = JSON.parse(localStorage.getItem("products") || "[]");
+
+    function saveProducts() {
+      localStorage.setItem("products", JSON.stringify(products));
+    }
+
+    function renderTable() {
+      const table = document.getElementById("productTable");
+      table.innerHTML = "";
+
+      let totalRevenue = 0;
+
+      products.forEach((p, i) => {
+        const total = p.soldCount * p.price;
+        totalRevenue += total;
+
+        const decreaseButton = p.soldCount > 0
+          ? `<button onclick="decreaseSold(${i})">-1 賣出</button>`
+          : `<button onclick="removeProduct(${i})">刪除此商品</button>`;
+
+        const row = `<tr>
+          <td>${p.name}</td>
+          <td>${p.quantity}</td>
+          <td>${p.price}</td>
+          <td>${p.soldCount}</td>
+          <td>${total}</td>
+          <td>
+            <button onclick="sell(${i})" ${p.quantity <= 0 ? "disabled" : ""}>賣出</button>
+            ${decreaseButton}
+          </td>
+        </tr>`;
+        table.innerHTML += row;
+      });
+
+      document.getElementById("totalRevenue").textContent = `總營收：$${totalRevenue}`;
+    }
+
+    function addProduct() {
+      const name = document.getElementById("name").value;
+      const quantity = parseInt(document.getElementById("quantity").value);
+      const price = parseInt(document.getElementById("price").value);
+
+      if (!name || quantity < 0 || price < 0) return alert("請正確填寫資料");
+
+      products.push({ name, quantity, price, soldCount: 0 });
+      saveProducts();
+      renderTable();
+    }
+
+    function sell(index) {
+      if (products[index].quantity > 0) {
+        products[index].quantity--;
+        products[index].soldCount++;
+        saveProducts();
+        renderTable();
+      }
+    }
+
+    function decreaseSold(index) {
+      if (products[index].soldCount > 0) {
+        products[index].soldCount--;
+        products[index].quantity++;
+        saveProducts();
+        renderTable();
+      }
+    }
+
+    function removeProduct(index) {
+      if (confirm("確定要刪除這個商品？")) {
+        products.splice(index, 1);
+        saveProducts();
+        renderTable();
+      }
+    }
+
+    function downloadCSV() {
+      let csv = "名稱,庫存,價格,賣出次數,賣出金額\n";
+      products.forEach(p => {
+        csv += `${p.name},${p.quantity},${p.price},${p.soldCount},${p.price * p.soldCount}\n`;
+      });
+
+      const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "商品紀錄.csv";
+      a.click();
+    }
+
+    renderTable();
+  </script>
+</body>
+</html>
